@@ -2,89 +2,181 @@ from driver import Driver
 from bs4 import BeautifulSoup
 import csv, time
 from rich import print
-import concurrent.futures
 import random
-import traceback
+import datetime
+import time
+from dotenv import load_dotenv
+import os
+import requests
+import re
+import datetime
+import sys
+import csv
 
-def find_business(row, random_id):
-    while True:
-        try:
-            for driver in DriversPool:
-                if driver.is_available() and not driver.has_response():
-                    driver.get_page(row['address'])
-                    break
-            else:
-                time.sleep(1)
-                print(f'[{random_id}] Waiting for a driver to be available...')
-                continue
-            break
-        except Exception as err:
-            print(err)
+load_dotenv()  # Load environment variables from .env file
 
-    wait_time = 0
-    while True:
-        try:
-            if driver.has_response():
+WAIT_TIME_LIMIT = 1000
+
+class Scraper:
+    def __init__(self):
+        self.DriversPool = []
+        # in case of one-time mode
+        self.DriversSize = 1
+        self.DriversPool = [Driver() for _ in range(self.DriversSize)]
+        self.searchKey = "検索キーワード"
+    
+    def closeDrivers(self):
+        for driver in self.DriversPool:
+            driver.close()
+
+    def searchGoogle(self, search_word, random_id):
+        while True:
+            try:
+                for driver in self.DriversPool:
+                    if driver.is_available() and not driver.has_response():
+                        driver.get_google_search(search_word)
+                        break
+                else:
+                    time.sleep(2)
+                    print(f'[{random_id}] Waiting for a driver to be available...')
+                    continue
                 break
-            time.sleep(1)
-            # print(f'[{random_id}] Waiting for a response...')
-            wait_time += 1
-            if wait_time == 15: 
-                driver.release()
-                return
-        except Exception as err:
-            print(err)
-            return
+            except Exception as err:
+                print(err)
+
+        wait_time = 0
+        while True:
+            try:
+                if driver.has_response():
+                    break
+                time.sleep(1)
+                print(f'[{random_id}] Waiting for a response...')
+                wait_time += 1
+                if wait_time == WAIT_TIME_LIMIT: 
+                    driver.release()
+                    return
+            except Exception as err:
+                print(err)
+                return None
+
+        soup = BeautifulSoup(driver.get_response(), 'html.parser')
+        # Initialize variables to hold extracted info
+        category = ""
+        price_range = ""
+        facility_description = ""
+        service_options = ""
         
-    soup = BeautifulSoup(driver.get_response(), 'html.parser')
+        # Extract price range (if available) G
+        subtitle_div = soup.find("div", attrs={"data-attrid": "subtitle"})
+        if subtitle_div:
+            price_range_element = subtitle_div.find_all("span")[-3]
+            if price_range_element:
+                price_range = price_range_element.text.strip()
 
-    info = {}
+        # Extract category (handle different category element classes) D
+        category_element = soup.find("span", class_=re.compile("E5BaQ|YhemCb"))
+        if category_element:
+            category = category_element.text.strip()
+        
+        # Extract Facility Description H
+        #@ Look for the facility description
+        facility_desc_element = soup.find('span', {'class': 'Yy0acb'})  
+        if facility_desc_element:
+            facility_description = facility_desc_element.text.strip()
+        #@ Try Extract Summary
+        summary = None
+        summary_element = soup.find('div', {'class': 'kno-rdesc'})
+        if summary_element:
+            summary_child_tags = summary_element.findChildren('span')
+            summary = summary_child_tags[0].text.strip() if summary_child_tags else None
+        if summary:
+            facility_description = f"{facility_description} {summary}".strip()
+        ## Extract Highlights
+        highlights = None
+        highlights_element = soup.find('span', {'class': 'vTmgGc'})
+        if highlights_element:
+            highlights = highlights_element.text.strip()
+        if highlights:
+            facility_description = f"{facility_description} {highlights}".strip()
 
-    if not soup.find('h1') or not soup.find('button', {'data-item-id': 'address'}): 
+        # Extract Service Options (related tag2) I
+        service_options_tag = soup.find('span', {'class': 'GKdNbc'}) 
+        if service_options_tag:
+            service_options_element = service_options_tag.find_next_sibling('span')
+            if service_options_element:
+                service_options = service_options_element.text.strip()
+
         driver.release()
-        info['name'] = 'Not Found'
-        row.update(info)
-        return row
+        
+        # Return the extracted data
+        return {
+            'price_range': price_range,
+            'category': category,
+            'facility_description': facility_description,
+            'service_options': service_options
+        }
 
-    info['name']     = soup.find('h1').text
-    info['gaddress']  = soup.find('button', {'data-item-id': 'address'})['aria-label'].split(': ')[-1] if soup.find('button', {'data-item-id': 'address'}) else None
-    info['website']  = soup.find('a', {'data-item-id': 'authority'})['href'] if soup.find('a', {'data-item-id': 'authority'}) else None
-    info['phone']    = soup.find('button', {'data-tooltip': 'Copy phone number'})['aria-label'].split(': ')[-1] if soup.find('button', {'data-tooltip': 'Copy phone number'}) else None
-    info['category'] = soup.find('button', {'jsaction': 'pane.rating.category'}).text if soup.find('button', {'jsaction': 'pane.rating.category'}) else None
+    def writeSearchResult(self, csvPath):
 
-    row.update(info)
-    driver.release()
-    return row
+        output_folder = "output"
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+        
+        # print(f"{csvPath}")
+
+        # Extract the filename for output naming
+        csvFileName = os.path.basename(csvPath)
+
+        with open(f"{csvPath}", "r", encoding="utf-8") as file:
+            # reader = csv.reader(file)
+            reader = csv.DictReader(file)  # Read rows as dictionaries
+
+            output_file_path = os.path.join(output_folder, f'出力_{csvFileName}')
+
+            with open(output_file_path, 'w', newline='', encoding='utf-8-sig') as output_file:
+                writer = csv.DictWriter(output_file, fieldnames=reader.fieldnames)
+                writer.writeheader()
+
+                for row in reader:
+                    search_word = row.get(self.searchKey, "")
+                    print(search_word)
+                    res = self.searchGoogle(search_word, random.randint(10000, 99999))
+                    row["注目のキーワード"] = res["category"]       # D
+                    row['関連tag2（サービスオプション）'] = res["service_options"]     # F
+                    row['価格帯'] = res["price_range"]           # G
+                    row["place_overview"] = res["facility_description"]           # H
+                    print(row)
+                    writer.writerow(row)
+
+    def startProc(self, csvPath):
+        self.writeSearchResult(csvPath)
+        time.sleep(2)
+        self.closeDrivers()
+
 
 if __name__ == '__main__':
-    for file_id in range(9, 87):
-        input_file = open(f'input/Data/data{file_id}.csv', 'r', encoding='utf-8')
-        output_file = open(f'output/output{file_id}.csv', 'a+', newline='', encoding='utf8')
-        # input_file = open('input.csv', 'r', encoding='utf-8')
-        # output_file = open('output.csv', 'a+', newline='', encoding='utf8')
-        reader = csv.reader(input_file)
-        DriversSize = 1
-        DriversPool = [Driver() for _ in range(DriversSize)]
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=DriversSize)
-        writer = csv.writer(output_file)
-        # writer.writeheader()
-        futures = []
-        count = 0
-        for row in reader:
-            address     = row[1]
-            description = row[2]
-            count += 1
-            initial_row = {'address': address, 'description': description}
-            futures.append(executor.submit(find_business, initial_row, random.randint(10000, 99999)))
-        
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                row = future.result()
-                if (row is None):
-                    continue
-                writer.writerow(row.values())
-                output_file.flush()
-                print(row)
-            except Exception as err:
-                traceback.print_exc()
-        executor.shutdown(wait=True)
+
+    now = datetime.datetime.now()
+    date_string = now.strftime("%Y-%m-%d %H-%M-%S")
+
+    print("Usage: python scraper.py <csv path>")
+    csvPath = sys.argv[1] if len(sys.argv) > 1 else None
+
+    while True:
+
+        if csvPath is None:
+            csvPath = input("CSV Path: ")
+
+        if csvPath is None or csvPath.strip() == "":
+            print(f"CSV Path is required!")
+            csvPath = None
+            continue
+
+        break
+
+    print("======== Starting the App ==========")
+
+    obj = Scraper()
+    obj.startProc(csvPath)
+
+
