@@ -4,3 +4,5 @@
 /chromedriver.exe
 /chromedriver_win32.zip
 /LICENSE.chromedriver
+/*.zip
+/*.csv
