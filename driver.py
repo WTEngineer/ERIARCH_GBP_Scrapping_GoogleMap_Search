@@ -3,9 +3,21 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import InvalidSessionIdException, NoSuchElementException, ElementNotInteractableException
 import threading
 import time
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # Load environment variables from .env file
+
+driver_timeout = 1000
+
+target_url = os.getenv("TARGET_URL")
 
 class Driver:
     def __init__(self):
@@ -15,15 +27,15 @@ class Driver:
         chrome_options = Options()
         # chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
+        chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument("--window-size=1024,768")
+        chrome_options.add_argument("--window-size=1280,800")
         # self.driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=chrome_options)
         service = Service()
-        # options = webdriver.ChromeOptions()
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.get('https://www.google.com/maps?hl=en')
-        # if self.driver.find_element(By.XPATH, '//form[@action="https://consent.google.com/save"]'):
-        #     self.driver.find_elements(By.XPATH, '//form[@action="https://consent.google.com/save"]')[1].click()
+        print("Loading Page ...")
+        self.driver.get(target_url)
+        print("--------Ready------")
         self.status = 'ready'
         self.response = None
 
@@ -32,9 +44,34 @@ class Driver:
     
     def reload_page(self):
         try:
-            self.driver.get('https://www.google.com/maps?hl=en')
+            self.driver.get(target_url)
         except Exception:
             return
+        
+    # get category page 
+    def get_google_search_execute(self, search_query, page_name):
+        try:
+            WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@name="q"]')))
+            # Locate the search box using its name attribute value
+            search_box = self.driver.find_element(By.NAME, "q")
+            search_box.clear()
+            # Type the search query
+            search_box.send_keys(search_query)
+            # Press Enter
+            search_box.send_keys(Keys.RETURN)
+            # wait to see title from google search
+            WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@data-attrid="title"]')))
+            # Wait for a few seconds to see the results
+            time.sleep(3)
+            self.response = self.driver.page_source
+            self.status = 'ready'
+        except Exception as err:
+            print("Exception in get shazam charts")
+            print(err)
+
+    def get_google_search(self, search_word):
+        self.status = 'busy'
+        threading.Thread(target=self.get_google_search_execute, args=(search_word, "get_category_search")).start()
 
     def execute(self, task, url=None):
         try:
@@ -76,3 +113,7 @@ class Driver:
     def release(self):
         self.response = None
         self.status = 'ready'
+
+    def close(self):
+        self.release()
+        self.driver.close()

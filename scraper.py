@@ -130,12 +130,16 @@ class Scraper:
         with open(f"{csvPath}", "r", encoding="utf-8") as file:
             # reader = csv.reader(file)
             reader = csv.DictReader(file)  # Read rows as dictionaries
+            if reader.fieldnames is None:
+                print("Error: CSV file is missing headers or is empty.")
+                return
 
             output_file_path = os.path.join(output_folder, f'出力_{csvFileName}')
 
             with open(output_file_path, 'w', newline='', encoding='utf-8-sig') as output_file:
                 writer = csv.DictWriter(output_file, fieldnames=reader.fieldnames)
                 writer.writeheader()
+                output_file.flush()
 
                 for row in reader:
                     search_word = row.get(self.searchKey, "")
@@ -147,6 +151,7 @@ class Scraper:
                     row["place_overview"] = res["facility_description"]           # H
                     print(row)
                     writer.writerow(row)
+                    output_file.flush()  # Ensure immediate writing
 
     def startProc(self, csvPath):
         self.writeSearchResult(csvPath)
