@@ -63,7 +63,7 @@ class Driver:
             WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//div[@id="w7tRq"]')))
             # WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@data-attrid="title"]')))
             # Wait for a few seconds to see the results
-            time.sleep(5)
+            time.sleep(3)
             self.response = self.driver.page_source
             self.status = 'ready'
         except Exception as err:
