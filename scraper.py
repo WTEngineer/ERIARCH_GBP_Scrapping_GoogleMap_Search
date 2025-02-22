@@ -143,7 +143,7 @@ class Scraper:
 
                 for row in reader:
                     search_word = row.get(self.searchKey, "")
-                    print(search_word)
+                    print(f"Search Word: {search_word}")
                     res = self.searchGoogle(search_word, random.randint(10000, 99999))
                     row["注目のキーワード"] = res["category"]       # D
                     row['関連tag2（サービスオプション）'] = res["service_options"]     # F

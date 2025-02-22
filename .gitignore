@@ -6,3 +6,5 @@
 /LICENSE.chromedriver
 /*.zip
 /*.csv
+/dist
+/build

@@ -7,6 +7,11 @@ import json
 import subprocess
 import platform
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+ENV = os.getenv("ENV")
 
 class EbayAutoApp(QMainWindow):
     def __init__(self):
@@ -93,7 +98,11 @@ class EbayAutoApp(QMainWindow):
             self.show_warning(f"CSVファイルを選択してください")
             return
 
-        command = f"python scraper.py {self.input_csv_path}"
+        if ENV == "development":
+            command = f"python scraper.py {self.input_csv_path}"      # dev mode
+        else:
+            command = f"scraper.exe {self.input_csv_path}"        # live mode
+            
         self.run_command(command)
         
 if __name__ == "__main__":

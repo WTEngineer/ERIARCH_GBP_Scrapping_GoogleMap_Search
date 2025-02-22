@@ -60,9 +60,10 @@ class Driver:
             # Press Enter
             search_box.send_keys(Keys.RETURN)
             # wait to see title from google search
-            WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@data-attrid="title"]')))
+            WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//div[@id="w7tRq"]')))
+            # WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@data-attrid="title"]')))
             # Wait for a few seconds to see the results
-            time.sleep(3)
+            time.sleep(5)
             self.response = self.driver.page_source
             self.status = 'ready'
         except Exception as err:
