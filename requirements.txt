@@ -2,3 +2,4 @@ beautifulsoup4
 rich
 selenium
 webdriver_manager
+fake_useragent

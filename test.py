@@ -68,9 +68,12 @@ class Scraper:
         # Extract price range (if available) G
         subtitle_div = soup.find("div", attrs={"data-attrid": "subtitle"})
         if subtitle_div:
-            price_range_element = subtitle_div.find_all("span")[-3]
-            if price_range_element:
-                price_range = price_range_element.text.strip()
+            br_element = subtitle_div.find("br")
+            if br_element:
+                price_range_element = br_element.find_next_sibling('span')
+                # Check if the next sibling is a <span> containing price range
+                if price_range_element and price_range_element.get('class') == None and price_range_element.find('span'):
+                    price_range = price_range_element.find('span').get_text(strip=True)
 
         # Extract category (handle different category element classes) D
         category_element = soup.find("span", class_=re.compile("E5BaQ|YhemCb"))
@@ -78,11 +81,11 @@ class Scraper:
             category = category_element.text.strip()
         
         # Extract Facility Description H
-        # Look for the facility description
+        #@ Look for the facility description
         facility_desc_element = soup.find('span', {'class': 'Yy0acb'})  
         if facility_desc_element:
             facility_description = facility_desc_element.text.strip()
-        # Try Extract Summary
+        #@ Try Extract Summary
         summary = None
         summary_element = soup.find('div', {'class': 'kno-rdesc'})
         if summary_element:
@@ -90,6 +93,7 @@ class Scraper:
             summary = summary_child_tags[0].text.strip() if summary_child_tags else None
         if summary:
             facility_description = f"{facility_description} {summary}".strip()
+        ## Extract Highlights
         highlights = None
         highlights_element = soup.find('span', {'class': 'vTmgGc'})
         if highlights_element:

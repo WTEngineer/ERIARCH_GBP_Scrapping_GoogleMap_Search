@@ -10,6 +10,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import InvalidSessionIdException, NoSuchElementException, ElementNotInteractableException
 import threading
 import time
+import random
 from dotenv import load_dotenv
 import os
 
@@ -18,6 +19,9 @@ load_dotenv()  # Load environment variables from .env file
 driver_timeout = 1000
 
 target_url = os.getenv("TARGET_URL")
+# Path to your Chrome user profile
+profile_path = os.getenv("CHROME_PROFILE_PATH")
+profile_name = os.getenv("CHROME_PROFILE_NAME")
 
 class Driver:
     def __init__(self):
@@ -26,9 +30,13 @@ class Driver:
     def createBrowser(self):
         chrome_options = Options()
         # chrome_options.add_argument('--headless')
+        # Use the existing profile
+        # chrome_options.add_argument(f"user-data-dir={profile_path}")  # Path to your user data folder
+        # chrome_options.add_argument(f"profile-directory={profile_name}")  # You can specify the profile name, e.g., Default
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Prevents WebDriver detection
         chrome_options.add_argument("--window-size=1280,800")
         # self.driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=chrome_options)
         service = Service()
@@ -63,7 +71,7 @@ class Driver:
             WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//div[@id="w7tRq"]')))
             # WebDriverWait(self.driver, driver_timeout).until(EC.presence_of_element_located((By.XPATH, '//*[@data-attrid="title"]')))
             # Wait for a few seconds to see the results
-            time.sleep(3)
+            time.sleep(random.uniform(3, 5))
             self.response = self.driver.page_source
             self.status = 'ready'
         except Exception as err:
@@ -86,7 +94,7 @@ class Driver:
                     self.driver.find_element(By.XPATH, '//input[@id="searchboxinput"]').clear()
                     self.driver.find_element(By.XPATH, '//input[@id="searchboxinput"]').send_keys(url)
                     self.driver.find_element(By.XPATH, '//button[@id="searchbox-searchbutton"]').click()
-                    time.sleep(4)
+                    time.sleep(random.uniform(3, 5))
                     self.response = self.driver.page_source
             self.status = 'ready'
         except NoSuchElementException:

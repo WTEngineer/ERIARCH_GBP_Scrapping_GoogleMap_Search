@@ -69,9 +69,12 @@ class Scraper:
         # Extract price range (if available) G
         subtitle_div = soup.find("div", attrs={"data-attrid": "subtitle"})
         if subtitle_div:
-            price_range_element = subtitle_div.find_all("span")[-3]
-            if price_range_element:
-                price_range = price_range_element.text.strip()
+            br_element = subtitle_div.find("br")
+            if br_element:
+                price_range_element = br_element.find_next_sibling('span')
+                # Check if the next sibling is a <span> containing price range
+                if price_range_element and price_range_element.get('class')  == None and price_range_element.find('span'):
+                    price_range = price_range_element.find('span').get_text(strip=True)
 
         # Extract category (handle different category element classes) D
         category_element = soup.find("span", class_=re.compile("E5BaQ|YhemCb"))
@@ -118,6 +121,11 @@ class Scraper:
 
     def writeSearchResult(self, csvPath):
 
+        # Get the current date and time
+        current_time = datetime.datetime.now()
+        # Format the timestamp for the file name
+        formatted_time = current_time.strftime('%Y-%m-%d_%H-%M')
+
         output_folder = "output"
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -134,14 +142,14 @@ class Scraper:
                 print("Error: CSV file is missing headers or is empty.")
                 return
 
-            output_file_path = os.path.join(output_folder, f'出力_{csvFileName}')
+            output_file_path = os.path.join(output_folder, f'出力_{formatted_time}_{csvFileName}')
 
-            with open(output_file_path, 'w', newline='', encoding='utf-8-sig') as output_file:
+            with open(output_file_path, 'w+', newline='', encoding='utf-8-sig') as output_file:
                 writer = csv.DictWriter(output_file, fieldnames=reader.fieldnames)
                 writer.writeheader()
                 output_file.flush()
 
-                for row in reader:
+                for index, row in enumerate(reader):
                     search_word = row.get(self.searchKey, "")
                     print(f"-------- Run Google Searching: `{search_word}` --------")
                     res = self.searchGoogle(search_word, random.randint(10000, 99999))
@@ -149,7 +157,7 @@ class Scraper:
                     row['関連tag2（サービスオプション）'] = res["service_options"]     # F
                     row['価格帯'] = res["price_range"]           # G
                     row["place_overview"] = res["facility_description"]           # H
-                    print(row)
+                    print(row, index + 1)
                     writer.writerow(row)
                     output_file.flush()  # Ensure immediate writing
 
