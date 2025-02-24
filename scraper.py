@@ -15,7 +15,7 @@ import csv
 
 load_dotenv()  # Load environment variables from .env file
 
-WAIT_TIME_LIMIT = 1000
+WAIT_TIME_LIMIT = 1000  #Limit time
 
 class Scraper:
     def __init__(self):
